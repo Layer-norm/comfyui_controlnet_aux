@@ -14,18 +14,30 @@ import tempfile
 here = Path(__file__).parent.resolve()
 
 config_path = Path(here, "config.yaml")
+AUX_CONFIG_KEYS = ["annotator_ckpts_path", "custom_temp_path", "USE_SYMLINKS", "EP_list"]
 
 if os.path.exists(config_path):
     config = yaml.load(open(config_path, "r"), Loader=yaml.FullLoader)
 
+    for key in AUX_CONFIG_KEYS:
+        if key not in config:
+            log.warning("lack of key: " + key + ". please add it to config.yaml")
+            config[key] = None
+    
     annotator_ckpts_path = str(Path(here, config["annotator_ckpts_path"]))
     TEMP_DIR = config["custom_temp_path"]
     USE_SYMLINKS = config["USE_SYMLINKS"]
     ORT_PROVIDERS = config["EP_list"]
 
-    if USE_SYMLINKS is None or type(USE_SYMLINKS) != bool:
-        log.error("USE_SYMLINKS must be a boolean. Using False by default.")
-        USE_SYMLINKS = False
+    if config["annotator_ckpts_path"] is None:
+        log.error("annotator_ckpts_path cannot be a None-Type. Using default.")
+        annotator_ckpts_path = str(Path(here, "./ckpts"))
+    elif not os.path.isdir(annotator_ckpts_path):
+        try:
+            os.makedirs(annotator_ckpts_path)
+        except:
+            log.error("Failed to create config ckpts directory. Using default.")
+            annotator_ckpts_path = str(Path(here, "./ckpts"))
 
     if TEMP_DIR is None:
         TEMP_DIR = tempfile.gettempdir()
@@ -35,13 +47,15 @@ if os.path.exists(config_path):
         except:
             log.error("Failed to create custom temp directory. Using default.")
             TEMP_DIR = tempfile.gettempdir()
+    
+    if USE_SYMLINKS is None or type(USE_SYMLINKS) != bool:
+        log.error("USE_SYMLINKS must be a boolean. Using False by default.")
+        USE_SYMLINKS = False
 
-    if not os.path.isdir(annotator_ckpts_path):
-        try:
-            os.makedirs(annotator_ckpts_path)
-        except:
-            log.error("Failed to create config ckpts directory. Using default.")
-            annotator_ckpts_path = str(Path(here, "./ckpts"))
+    if ORT_PROVIDERS is None:
+        log.error("ORT_PROVIDERS must be a list of strings. Using default.")
+        ORT_PROVIDERS = ["CUDAExecutionProvider", "DirectMLExecutionProvider", "OpenVINOExecutionProvider", "ROCMExecutionProvider", "CPUExecutionProvider", "CoreMLExecutionProvider"]
+
 else:
     annotator_ckpts_path = str(Path(here, "./ckpts"))
     TEMP_DIR = tempfile.gettempdir()
